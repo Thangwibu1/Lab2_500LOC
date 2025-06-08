@@ -32,11 +32,18 @@ public class ReservationList extends ArrayList<Reservation> implements I_List<Re
                 ObjectInputStream of = new ObjectInputStream(is)) {
                 this.clear();
                 try {
-                    while (true) {
-                        ArrayList<Reservation> reservations = (ArrayList<Reservation>) of.readObject();
-                        this.addAll(reservations);
-                        check = true; // Successfully read reservations
+                    try {
+                        while (true) {
+                            Reservation reserved = (Reservation) of.readObject();
+
+                            this.add(reserved);
+                            check = true; // Successfully read reservations
+                        }
+                    } catch (EOFException e) {
+                        // End of file reached, no action needed
+                        System.out.println(this.size());
                     }
+
                 } catch (Exception e) {
                     e.printStackTrace();
                     // End of file reached, no action needed
@@ -95,7 +102,15 @@ public class ReservationList extends ArrayList<Reservation> implements I_List<Re
 
     @Override
     public boolean update(Reservation reservation) {
-        return false;
+        boolean check = false;
+        for (Reservation r : this) {
+            if (reservation.getReservedId().equals(r.getReservedId())) {
+                r.setRentalDays(reservation.getRentalDays());
+                r.setEndDate(reservation.getEndDate());
+                r.setNameOfCoTenant(reservation.getNameOfCoTenant());
+            }
+        }
+        return check;
     }
 
     @Override
@@ -104,12 +119,15 @@ public class ReservationList extends ArrayList<Reservation> implements I_List<Re
     }
 
     @Override
-    public void showAll() {
-
+    public void showAll() throws IOException{
+        for (Reservation reservation : this) {
+            reservation.showInformation();
+        }
     }
 
     public boolean isAvailable(String roomId, String startDate, String endDate) {
         ArrayList<Reservation> reservations = searchByRoomId(roomId);
+        System.out.println("DEBUG" + reservations.size());
         boolean check = true;
         for (Reservation reservation : reservations) {
             LocalDate startDateLocal = LocalDate.parse(startDate.substring(6) + "-" + startDate.substring(3, 5) + "-" + startDate.substring(0, 2));
@@ -119,7 +137,7 @@ public class ReservationList extends ArrayList<Reservation> implements I_List<Re
             LocalDate reservedEnd = LocalDate.parse(reservation.getEndDate().substring(6) + "-" + reservation.getEndDate().substring(3, 5) + "-" + reservation.getEndDate().substring(0, 2));
 
             // Check if the new reservation overlaps with an existing one
-            if (startDateLocal.isBefore(reservedEnd) || endDateLocal.isAfter(reservedStart)) {
+            if (startDateLocal.isBefore(reservedEnd) || endDateLocal.isAfter(reservedStart) || startDateLocal.isEqual(reservedEnd) || startDateLocal.isEqual(reservedStart)) {
                 check = false;
             }
         }
@@ -134,5 +152,15 @@ public class ReservationList extends ArrayList<Reservation> implements I_List<Re
             }
         }
         return reservations; // Return all reservations for the specified room ID
+    }
+
+    public ArrayList<Reservation> searchByGuestId(String guestId) {
+    ArrayList<Reservation> reservations = new ArrayList<>();
+        for (Reservation reservation : this) {
+            if (reservation.getNationalIdNumber().equals(guestId)) {
+                reservations.add(reservation);
+            }
+        }
+        return reservations; // Return all reservations for the specified guest ID
     }
 }

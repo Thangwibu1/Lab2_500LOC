@@ -104,10 +104,7 @@ public class GuestList extends ArrayList<Guest> implements I_List<Guest> {
         } else {
             Guest existingGuest = this.searchById(guest.getNationalIdNumber());
             if (existingGuest != null) {
-                existingGuest.setFullName(guest.getFullName());
                 existingGuest.setPhoneNumber(guest.getPhoneNumber());
-                existingGuest.setGender(guest.getGender());
-                existingGuest.setBirthDate(guest.getBirthDate());
 
                 check = true;
 

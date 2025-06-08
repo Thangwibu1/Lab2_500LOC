@@ -19,6 +19,6 @@ public interface I_List<T> {
     public T searchById(String id);
 
     //Show all items
-    public void showAll();
+    public void showAll() throws IOException;
 
 }

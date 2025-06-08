@@ -34,7 +34,7 @@ public class Program {
                     function.enterGuestInformation();
                     break;
                 case 4:
-
+                    function.updateReservation();
 
                     break;
                 case 5:

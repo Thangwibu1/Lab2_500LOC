@@ -9,6 +9,7 @@ import javaapplication2.storage.RoomList;
 
 import java.io.IOException;
 import java.time.LocalDate;
+import java.util.ArrayList;
 
 public class Function {
     RoomList roomList = new RoomList();
@@ -42,25 +43,34 @@ public class Function {
 
     public void enterGuestInformation() throws IOException {
         // Search customer by name
-        String nationalId = Inputer.inputString("^[0-9]{12}$", "Please enter customer's national ID number: ");
-        String firstName = Inputer.inputString("^[a-zA-Z]+$", "Please enter customer's first name: ");
-        String lastName = Inputer.inputString("^[a-zA-Z]+$", "Please enter customer's last name: ");
-
-        String name = firstName + ", " + lastName;
-
+        String nationalId = "";
+        nationalId = Inputer.inputString("^[0-9]{12}$", "Please enter national ID: ");
+        String name = "";
+        String gender = "";
+        String phoneNumber = "";
         String birthDate = "";
-        while (true) {
-            birthDate = Inputer.inputString("^(0[1-9]|[12][0-9]|3[01])/(0[1-9]|1[0-2])/([12][0-9]{3})$", "Please enter customer's birth date dd/mm/yyyy: ");
-            LocalDate yearGet = LocalDate.now();
-            String[] birthDateParts = birthDate.split("/");
-            if (Integer.parseInt(birthDateParts[2]) > yearGet.getYear() || Integer.parseInt(birthDateParts[2]) < 0) {
-                continue;
-            }
-            break;
-        }
+        if (guestList.searchById(nationalId) == null) {
+            String firstName = Inputer.inputString("^[a-zA-Z]+$", "Please enter customer's first name: ");
+            String lastName = Inputer.inputString("^[a-zA-Z]+$", "Please enter customer's last name: ");
 
-        String gender = Inputer.inputString("^[MF]$", "Please enter customer's gender (M/F): ");
-        String phoneNumber = Inputer.inputPhone("Please enter customer's phone number: ");
+            name = firstName + ", " + lastName;
+
+            while (true) {
+                birthDate = Inputer.inputString("^(0[1-9]|[12][0-9]|3[01])/(0[1-9]|1[0-2])/([12][0-9]{3})$", "Please enter customer's birth date dd/mm/yyyy: ");
+                LocalDate yearGet = LocalDate.now();
+                String[] birthDateParts = birthDate.split("/");
+                if (Integer.parseInt(birthDateParts[2]) > yearGet.getYear() || Integer.parseInt(birthDateParts[2]) < 0) {
+                    continue;
+                }
+                break;
+            }
+
+            gender = Inputer.inputString("^[MF]$", "Please enter customer's gender (M/F): ");
+            phoneNumber = Inputer.inputPhone("Please enter customer's phone number: ");
+        } else {
+            System.out.println("Customer with national ID " + nationalId + " already exists.");
+            System.out.println("Enter Reservation Information");
+        }
 
         int rentalDays = 0;
         while (true) {
@@ -106,7 +116,7 @@ public class Function {
         }
 
         String reservationId = "Rs" + (reservationList.size() + 1);
-        if (reservationList.addNew(new Reservation(reservationId, roomId, nationalId, rentalDays, startDate, endDate, nameOfCotenant))
+        if (reservationList.addNew(new Reservation(reservationId, nationalId, roomId, rentalDays, startDate, endDate, nameOfCotenant))
                 && guestList.addNew(new Guest(nationalId, name, birthDate, gender, phoneNumber))) {
             System.out.println("Guest information and reservation successfully added.");
             reservationList.saveToFile();
@@ -116,7 +126,78 @@ public class Function {
         } else {
             System.out.println("Failed to add guest information or reservation.");
         }
+    }
 
+    public void updateReservation() {
+        String searchId = Inputer.inputString("^[0-9]{12}$", "Please enter national ID to search: ");
+        ArrayList<Reservation> reservations = reservationList.searchByGuestId(searchId);
+        if (reservations.isEmpty()) {
+            System.out.println("No reservations found for the given national ID.");
+            return;
+        } else if (reservations.size() == 1) {
+            Reservation updateReservaiton = reservations.get(0);
+            String phoneUpdate = Inputer.inputPhone("Please enter new phone number: ");
+            int rentalDaysUpdate = Inputer.inputInt("^[1-9][0-9]*$", "Please enter the number of rental days (positive integer): ");
+            String updateCotenant = Inputer.inputString("^[a-zA-Z\\s]+$", "Please enter the name of co-tenant (if any, if not enter null): ");
+            if (updateCotenant.equalsIgnoreCase("null")) {
+                updateCotenant = "";
+            }
+            String endDateUpdate = "";
+            if (rentalDaysUpdate > updateReservaiton.getRentalDays()) {
+                LocalDate tmpEndDate = LocalDate.parse(updateReservaiton.getStartDate().substring(6) + "-" + updateReservaiton.getStartDate().substring(3, 5) + "-" + updateReservaiton.getStartDate().substring(0, 2));
+                tmpEndDate = tmpEndDate.plusDays(rentalDaysUpdate - updateReservaiton.getRentalDays());
+                endDateUpdate = String.format("%02d/%02d/%04d", tmpEndDate.getDayOfMonth(), tmpEndDate.getMonthValue(), tmpEndDate.getYear());
+            } else {
+                LocalDate tmpEndDate = LocalDate.parse(updateReservaiton.getStartDate().substring(6) + "-" + updateReservaiton.getStartDate().substring(3, 5) + "-" + updateReservaiton.getStartDate().substring(0, 2));
+                tmpEndDate = tmpEndDate.minusDays(Math.abs(rentalDaysUpdate - updateReservaiton.getRentalDays()));
+                endDateUpdate = String.format("%02d/%02d/%04d", tmpEndDate.getDayOfMonth(), tmpEndDate.getMonthValue(), tmpEndDate.getYear());
+            }
 
+            reservationList.update(new Reservation(updateReservaiton.getReservedId(), updateReservaiton.getNationalIdNumber(), updateReservaiton.getRoomId(), rentalDaysUpdate, updateReservaiton.getStartDate(), endDateUpdate, updateCotenant));
+            guestList.searchById(searchId).setPhoneNumber(phoneUpdate);
+        } else {
+            for (Reservation r : reservations) {
+                System.out.println("Reservation ID: " + r.getReservedId());
+                System.out.println("Room ID: " + r.getRoomId());
+                System.out.println("Start Date: " + r.getStartDate());
+                System.out.println("End Date: " + r.getEndDate());
+                System.out.println("Rental Days: " + r.getRentalDays());
+                System.out.println("Co-tenant Name: " + r.getNameOfCoTenant());
+                System.out.println("--------------------------------------------------");
+            }
+            String reservationId = Inputer.inputString("^[a-zA-Z0-9]+$", "Please enter the reservation ID to update: ");
+            for (Reservation r : reservations) {
+                if (r.getReservedId().equals(reservationId)) {
+                    String phoneUpdate = Inputer.inputPhone("Please enter new phone number: ");
+                    int rentalDaysUpdate = Inputer.inputInt("^[1-9][0-9]*$", "Please enter the number of rental days (positive integer): ");
+                    String updateCotenant = Inputer.inputString("^[a-zA-Z\\s]+$", "Please enter the name of co-tenant (if any, if not enter null): ");
+                    if (updateCotenant.equalsIgnoreCase("null")) {
+                        updateCotenant = "";
+                    }
+                    String endDateUpdate = "";
+                    if (rentalDaysUpdate > r.getRentalDays()) {
+                        LocalDate tmpEndDate = LocalDate.parse(r.getStartDate().substring(6) + "-" + r.getStartDate().substring(3, 5) + "-" + r.getStartDate().substring(0, 2));
+                        tmpEndDate = tmpEndDate.plusDays(rentalDaysUpdate - r.getRentalDays());
+                        endDateUpdate = String.format("%02d/%02d/%04d", tmpEndDate.getDayOfMonth(), tmpEndDate.getMonthValue(), tmpEndDate.getYear());
+                    } else {
+                        LocalDate tmpEndDate = LocalDate.parse(r.getStartDate().substring(6) + "-" + r.getStartDate().substring(3, 5) + "-" + r.getStartDate().substring(0, 2));
+                        tmpEndDate = tmpEndDate.minusDays(Math.abs(rentalDaysUpdate - r.getRentalDays()));
+                        endDateUpdate = String.format("%02d/%02d/%04d", tmpEndDate.getDayOfMonth(), tmpEndDate.getMonthValue(), tmpEndDate.getYear());
+                    }
+                    reservationList.update(new Reservation(r.getReservedId(), r.getNationalIdNumber(), r.getRoomId(), rentalDaysUpdate, r.getStartDate(), endDateUpdate, updateCotenant));
+                    guestList.searchById(searchId).setPhoneNumber(phoneUpdate);
+                    System.out.println("Reservation updated successfully.");
+                }
+            }
+        }
+        reservationList.saveToFile();
+        guestList.saveToFile();
+
+    }
+
+    public void searchReservationById() throws IOException {
+        String searchId = Inputer.inputString("^[0-9]{12}$", "Please enter national ID to search: ");
+        ArrayList<Reservation> reservations = reservationList.searchByGuestId(searchId);
+        reservationList.showAll();
     }
 }
